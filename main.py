@@ -1,45 +1,70 @@
+import tkinter as tk
+from tkinter import messagebox
 import nmap
-import subprocess
 import json
-import os
 
-def scan_reseau(ip_range):
-    print(f"Scanning network range: {ip_range}")
-    scanner = nmap.PortScanner()
+# Scanner Nmap
+scanner = nmap.PortScanner()
+
+
+def lancer_scan_basique():
+    ip_range = "192.168.1.0/24"  # À personnaliser
+    print(f"Lancement du scan basique sur {ip_range}...")
     scanner.scan(hosts=ip_range, arguments='-sn')
-    hosts_list = [(host, scanner[host].state()) for host in scanner.all_hosts()]
-    print("Scan Results:")
-    for host, state in hosts_list:
-        print(f"Host: {host} - State: {state}")
-    return hosts_list
 
-def ping(target):
-    print(f"Pinging target: {target}")
-    try:
-        # Run the ping command with 4 packets
-        result = subprocess.run(['ping', '-c', '4', target], capture_output=True, text=True)
-        return result.stdout
-    except Exception as e:
-        print(f"Error: {e}")
-        return str(e)
+    hosts_decouverts = [host for host in scanner.all_hosts() if scanner[host].state() == "up"]
+    print("Hôtes découverts :", hosts_decouverts)
 
-def generate_report(scan_results, ping_result):
-    report = {
-        "scan_results": [{"host": host, "state": state} for host, state in scan_results],
-        "ping_result": ping_result
-    }
-    # Save the report as a JSON file
-    with open("network_report.json", "w") as json_file:
-        json.dump(report, json_file, indent=4)
-    print("Report saved as network_report.json")
+    afficher_resultats_scan("Scan Basique", hosts_decouverts)
+    return hosts_decouverts
 
-if __name__ == "__main__":
-    ip_range = "192.168.1.0/24"  # Change this to your local network range
-    scan_results = scan_reseau(ip_range)
 
-    ping_result = ""
-    if scan_results:
-        target_ip = scan_results[0][0]  # Ping the first host found
-        ping_result = ping(target_ip)
+def lancer_scan_avance(hosts_decouverts):
+    print("Lancement du scan avancé sur les hôtes découverts...")
+    resultats_avances = {}
 
-    generate_report(scan_results, ping_result)
+    for host in hosts_decouverts:
+        scanner.scan(hosts=host, arguments='-A')
+        resultats_avances[host] = scanner[host]
+
+    afficher_resultats_scan("Scan Avancé", resultats_avances)
+
+
+def lancer_scan_avance_2(hosts_decouverts):
+    print("Lancement du scan avancé 2 (-sC -sV) sur les hôtes découverts...")
+    resultats_avances_2 = {}
+
+    for host in hosts_decouverts:
+        scanner.scan(hosts=host, arguments='-sC -sV')
+        resultats_avances_2[host] = scanner[host]
+
+    afficher_resultats_scan("Scan Avancé 2", resultats_avances_2)
+
+
+def afficher_resultats_scan(titre, resultats):
+    rapport = json.dumps(resultats, indent=4, default=str)
+    messagebox.showinfo(titre, rapport)
+
+    # Enregistre le rapport dans un fichier JSON
+    with open(f"{titre.replace(' ', '_').lower()}_report.json", "w") as f:
+        f.write(rapport)
+    print(f"Rapport {titre} enregistré.")
+
+
+# Interface Tkinter
+root = tk.Tk()
+root.title("Seahawks Monitoring")
+
+hosts_decouverts = []
+
+btn_scan_basique = tk.Button(root, text="Scan Basique", command=lambda: hosts_decouverts.extend(lancer_scan_basique()))
+btn_scan_basique.pack(pady=10)
+
+btn_scan_avance = tk.Button(root, text="Scan Avancé", command=lambda: lancer_scan_avance(hosts_decouverts))
+btn_scan_avance.pack(pady=10)
+
+btn_scan_avance_2 = tk.Button(root, text="Scan Avancé 2 (-sC -sV)",
+                              command=lambda: lancer_scan_avance_2(hosts_decouverts))
+btn_scan_avance_2.pack(pady=10)
+
+root.mainloop()
