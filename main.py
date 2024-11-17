@@ -10,7 +10,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 # Définir la version de l'application
-APP_VERSION = "1.0.3"
+APP_VERSION = "1.0.4"
 
 # Scanner Nmap
 scanner = nmap.PortScanner()
@@ -26,6 +26,9 @@ def obtenir_infos_locales():
 def detecter_adresses_mac():
     try:
         result = os.popen("arp -a").read()  # Utilise la commande 'arp -a' pour obtenir les adresses MAC
+        # Sauvegarde du rapport dans un fichier JSON
+        with open("adresses_mac_report.json", "w") as f:
+            json.dump({"adresses_mac": result}, f, indent=4)
         messagebox.showinfo("Adresses MAC", result)
     except Exception as e:
         messagebox.showerror("Erreur", f"Impossible de détecter les adresses MAC : {str(e)}")
@@ -56,11 +59,9 @@ def afficher_resultats_scan(nombre_machines, machines_connectees):
         "machines_connectees": machines_connectees
     }
     # Sauvegarde du rapport dans un fichier JSON
-    with open("scan_report.json", "w") as f:
+    with open("scan_reseau_report.json", "w") as f:
         json.dump(rapport, f, indent=4)
-
     messagebox.showinfo("Résultats du Scan", f"Nombre de machines connectées : {nombre_machines}")
-    print(f"Rapport de scan sauvegardé dans scan_report.json")
 
 # Fonction pour lancer un scan avancé sur la machine sélectionnée
 def lancer_scan_avance():
@@ -70,12 +71,10 @@ def lancer_scan_avance():
             scanner.scan(hosts=cible, arguments='-A')
             details = scanner[cible]
             rapport = json.dumps(details, indent=4, default=str)
-
-            # Afficher les résultats du scan avancé
-            messagebox.showinfo("Scan Avancé", f"Résultats du scan avancé pour {cible} :\n{rapport}")
+            # Sauvegarde du rapport dans un fichier JSON
             with open(f"scan_avance_{cible}.json", "w") as f:
                 f.write(rapport)
-            print(f"Rapport de scan avancé sauvegardé dans scan_avance_{cible}.json")
+            messagebox.showinfo("Scan Avancé", f"Résultats du scan avancé pour {cible} :\n{rapport}")
         except Exception as e:
             messagebox.showerror("Erreur", f"Erreur lors du scan avancé : {str(e)}")
     else:
@@ -86,6 +85,9 @@ def mesurer_latence(cible):
     try:
         result = subprocess.run(['ping', '-c', '4', cible], capture_output=True, text=True)
         latence = parse_ping_output(result.stdout)
+        # Sauvegarde du rapport dans un fichier JSON
+        with open("latence_wan_report.json", "w") as f:
+            json.dump({"cible": cible, "latence": latence}, f, indent=4)
         messagebox.showinfo("Latence WAN", f"Latence moyenne vers {cible}: {latence} ms")
     except Exception as e:
         messagebox.showerror("Erreur", f"Impossible de mesurer la latence : {str(e)}")
@@ -108,6 +110,9 @@ def tester_bande_passante():
     try:
         result = subprocess.run(['iperf3', '-c', serveur_iperf], capture_output=True, text=True)
         rapport = result.stdout
+        # Sauvegarde du rapport dans un fichier JSON
+        with open("bande_passante_report.json", "w") as f:
+            json.dump({"serveur_iperf": serveur_iperf, "rapport": rapport}, f, indent=4)
         messagebox.showinfo("Test de Bande Passante", rapport)
     except Exception as e:
         messagebox.showerror("Erreur", f"Impossible de tester la bande passante : {str(e)}")
@@ -115,6 +120,7 @@ def tester_bande_passante():
 # Fonction pour interroger SNMP
 def interroger_snmp(ip):
     try:
+        resultats_snmp = {}
         for (errorIndication, errorStatus, errorIndex, varBinds) in getCmd(
             SnmpEngine(),
             CommunityData('public', mpModel=0),
@@ -130,7 +136,12 @@ def interroger_snmp(ip):
                 return
             else:
                 for varBind in varBinds:
-                    messagebox.showinfo("SNMP", f'{varBind[0]} = {varBind[1]}')
+                    resultats_snmp[str(varBind[0])] = str(varBind[1])
+
+        # Sauvegarde du rapport dans un fichier JSON
+        with open("snmp_report.json", "w") as f:
+            json.dump(resultats_snmp, f, indent=4)
+        messagebox.showinfo("SNMP", f"Résultats SNMP :\n{json.dumps(resultats_snmp, indent=4)}")
     except Exception as e:
         messagebox.showerror("Erreur", f"Impossible d'interroger SNMP : {str(e)}")
 
@@ -141,6 +152,11 @@ def afficher_topologie():
     G.add_nodes_from(machines_connectees)
     for machine in machines_connectees:
         G.add_edge("Routeur", machine)
+
+    # Sauvegarde de la topologie dans un fichier JSON
+    topologie = {"Routeur": machines_connectees}
+    with open("topologie_reseau_report.json", "w") as f:
+        json.dump(topologie, f, indent=4)
 
     nx.draw(G, with_labels=True, node_color='lightblue', node_size=2000, font_size=10)
     plt.show()
