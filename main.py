@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk  # Importer ttk pour la liste déroulante
 import nmap
 import socket
 import subprocess
@@ -10,6 +10,7 @@ APP_VERSION = "1.0.0"
 
 # Scanner Nmap
 scanner = nmap.PortScanner()
+machines_connectees = []  # Liste pour stocker les machines découvertes
 
 
 # Fonction pour obtenir l'adresse IP locale et le nom de la machine
@@ -21,33 +22,42 @@ def obtenir_infos_locales():
 
 # Fonction pour lancer un scan réseau
 def lancer_scan():
+    global machines_connectees
     ip_range = "192.168.1.0/24"  # Plage d'adresses IP à scanner
     scanner.scan(hosts=ip_range, arguments='-p 1-1024')
 
-    machines_connectees = []
-    for host in scanner.all_hosts():
-        ports_ouverts = [port for port in scanner[host].all_tcp() if scanner[host]['tcp'][port]['state'] == 'open']
-        machines_connectees.append({
-            "ip": host,
-            "ports_ouverts": ports_ouverts
-        })
-
+    machines_connectees = [host for host in scanner.all_hosts()]
     nombre_machines = len(machines_connectees)
-    afficher_resultats_scan(machines_connectees, nombre_machines)
+
+    # Mettre à jour la liste déroulante avec les machines découvertes
+    liste_machines["values"] = machines_connectees
+    liste_machines.current(0)  # Sélectionne la première machine par défaut
+
+    afficher_resultats_scan(nombre_machines)
 
 
 # Fonction pour afficher les résultats du scan
-def afficher_resultats_scan(machines_connectees, nombre_machines):
-    rapport = {
-        "nombre_machines": nombre_machines,
-        "machines_connectees": machines_connectees
-    }
-    # Sauvegarde du rapport dans un fichier JSON
-    with open("scan_report.json", "w") as f:
-        json.dump(rapport, f, indent=4)
-
+def afficher_resultats_scan(nombre_machines):
     messagebox.showinfo("Résultats du Scan", f"Nombre de machines connectées : {nombre_machines}")
-    print(f"Rapport de scan sauvegardé dans scan_report.json")
+    print(f"{nombre_machines} machines connectées trouvées.")
+
+
+# Fonction pour lancer un scan avancé sur la machine sélectionnée
+def lancer_scan_avance():
+    cible = liste_machines.get()  # Récupère l'adresse IP sélectionnée
+    if cible:
+        print(f"Lancement du scan avancé sur {cible}...")
+        scanner.scan(hosts=cible, arguments='-A')
+        details = scanner[cible]
+        rapport = json.dumps(details, indent=4, default=str)
+
+        # Afficher les résultats du scan avancé
+        messagebox.showinfo("Scan Avancé", f"Résultats du scan avancé pour {cible} :\n{rapport}")
+        with open(f"scan_avance_{cible}.json", "w") as f:
+            f.write(rapport)
+        print(f"Rapport de scan avancé sauvegardé dans scan_avance_{cible}.json")
+    else:
+        messagebox.showwarning("Avertissement", "Veuillez sélectionner une machine pour le scan avancé.")
 
 
 # Fonction pour mesurer la latence WAN (ping)
@@ -80,10 +90,21 @@ label_infos = tk.Label(root,
                        text=f"Adresse IP Locale : {adresse_ip}\nNom de la Machine : {nom_machine}\nVersion : {APP_VERSION}")
 label_infos.pack(pady=10)
 
-# Boutons pour lancer les scans et mesurer la latence
+# Bouton pour lancer le scan réseau
 btn_scan = tk.Button(root, text="Lancer le Scan Réseau", command=lancer_scan)
 btn_scan.pack(pady=10)
 
+# Liste déroulante pour sélectionner une machine
+label_selection = tk.Label(root, text="Sélectionnez une machine pour le scan avancé :")
+label_selection.pack(pady=5)
+liste_machines = ttk.Combobox(root)
+liste_machines.pack(pady=5)
+
+# Bouton pour lancer le scan avancé
+btn_scan_avance = tk.Button(root, text="Lancer le Scan Avancé", command=lancer_scan_avance)
+btn_scan_avance.pack(pady=10)
+
+# Bouton pour mesurer la latence WAN
 btn_latence = tk.Button(root, text="Mesurer la Latence WAN", command=lambda: mesurer_latence("8.8.8.8"))
 btn_latence.pack(pady=10)
 
