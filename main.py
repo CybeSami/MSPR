@@ -33,13 +33,22 @@ def lancer_scan():
     liste_machines["values"] = machines_connectees
     liste_machines.current(0)  # Sélectionne la première machine par défaut
 
-    afficher_resultats_scan(nombre_machines)
+    # Afficher et sauvegarder le rapport de scan
+    afficher_resultats_scan(nombre_machines, machines_connectees)
 
 
-# Fonction pour afficher les résultats du scan
-def afficher_resultats_scan(nombre_machines):
+# Fonction pour afficher et sauvegarder les résultats du scan
+def afficher_resultats_scan(nombre_machines, machines_connectees):
+    rapport = {
+        "nombre_machines": nombre_machines,
+        "machines_connectees": machines_connectees
+    }
+    # Sauvegarde du rapport dans un fichier JSON
+    with open("scan_report.json", "w") as f:
+        json.dump(rapport, f, indent=4)
+
     messagebox.showinfo("Résultats du Scan", f"Nombre de machines connectées : {nombre_machines}")
-    print(f"{nombre_machines} machines connectées trouvées.")
+    print(f"Rapport de scan sauvegardé dans scan_report.json")
 
 
 # Fonction pour lancer un scan avancé sur la machine sélectionnée
