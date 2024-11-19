@@ -120,31 +120,43 @@ def tester_bande_passante():
 # Fonction pour interroger SNMP
 def interroger_snmp(ip):
     try:
+        # Dictionnaire pour stocker les résultats SNMP
         resultats_snmp = {}
-        for (errorIndication, errorStatus, errorIndex, varBinds) in getCmd(
-            SnmpEngine(),
-            CommunityData('public', mpModel=0),
-            UdpTransportTarget((ip, 161)),
-            ContextData(),
-            ObjectType(ObjectIdentity('1.3.6.1.2.1.1.1.0')),  # Exemple d'OID
-        ):
-            if errorIndication:
-                messagebox.showerror("Erreur SNMP", str(errorIndication))
-                return
-            elif errorStatus:
-                messagebox.showerror("Erreur SNMP", f'{errorStatus.prettyPrint()} at {errorIndex and varBinds[int(errorIndex) - 1][0] or "?"}')
-                return
-            else:
-                for varBind in varBinds:
-                    resultats_snmp[str(varBind[0])] = str(varBind[1])
 
-        # Sauvegarde du rapport dans un fichier JSON
-        with open("snmp_report.json", "w") as f:
-            json.dump(resultats_snmp, f, indent=4)
-        messagebox.showinfo("SNMP", f"Résultats SNMP :\n{json.dumps(resultats_snmp, indent=4)}")
+        # Exécution de la commande SNMP
+        iterator = getCmd(
+            SnmpEngine(),
+            CommunityData('public', mpModel=0),  # La communauté SNMP "public"
+            UdpTransportTarget((ip, 161)),  # Adresse IP et port SNMP (161)
+            ContextData(),
+            ObjectType(ObjectIdentity('1.3.6.1.2.1.1.1.0'))  # OID SNMP pour l'information système
+        )
+
+        # Parcours des résultats de l'itérateur
+        errorIndication, errorStatus, errorIndex, varBinds = next(iterator)
+
+        # Gestion des erreurs
+        if errorIndication:
+            messagebox.showerror("Erreur SNMP", f"Indication d'erreur : {errorIndication}")
+            return
+        elif errorStatus:
+            messagebox.showerror("Erreur SNMP", f"Statut d'erreur : {errorStatus.prettyPrint()} "
+                                                f"at {errorIndex and varBinds[int(errorIndex) - 1][0] or '?'}")
+            return
+        else:
+            # Traitement des résultats SNMP
+            for varBind in varBinds:
+                resultats_snmp[str(varBind[0])] = str(varBind[1])
+
+            # Sauvegarde du rapport dans un fichier JSON
+            with open("snmp_report.json", "w") as f:
+                json.dump(resultats_snmp, f, indent=4)
+
+            # Affichage des résultats
+            messagebox.showinfo("SNMP", f"Résultats SNMP :\n{json.dumps(resultats_snmp, indent=4)}")
+
     except Exception as e:
         messagebox.showerror("Erreur", f"Impossible d'interroger SNMP : {str(e)}")
-
 # Fonction pour afficher la topologie réseau
 def afficher_topologie():
     G = nx.Graph()
