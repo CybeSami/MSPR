@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://seahawks_user:seahawkdb@192.168.1.109/seahawks_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://seahawks_user:seahawksdb@192.168.1.109/seahawks_db'
 db = SQLAlchemy(app)
 
 class ScanResult(db.Model):
