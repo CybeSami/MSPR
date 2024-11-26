@@ -8,41 +8,51 @@ import os
 import datetime
 import requests
 
-# Définir la version de l'application
-APP_VERSION = "1.1.0"
+# Charger la configuration depuis config.json
+with open("config.json", "r") as config_file:
+    config = json.load(config_file)
+
+API_URL = config["api_url"]
+SCAN_DIR = config["scan_directory"]
+IP_RANGE = config["ip_range"]
+APP_VERSION = config["app_version"]
 
 # Scanner Nmap
 scanner = nmap.PortScanner()
 machines_connectees = []
-all_reports = []  # Liste pour stocker tous les rapports
+all_reports = []
 
-# Dossier pour sauvegarder les scans
-base_scan_dir = "scanResults"
-if not os.path.exists(base_scan_dir):
-    os.mkdir(base_scan_dir)
+# Créer le répertoire de base pour les scans si nécessaire
+if not os.path.exists(SCAN_DIR):
+    os.mkdir(SCAN_DIR)
 
-# Créer un dossier pour chaque session
+# Créer un répertoire pour chaque session
 session_dir = os.path.join(
-    base_scan_dir, f"scan_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
+    SCAN_DIR, f"scan_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
 )
 os.mkdir(session_dir)
 
-# Fonction pour envoyer les rapports en batch
+# Fonction pour envoyer les rapports un par un
 def envoyer_rapports():
     if not all_reports:
         messagebox.showwarning("Avertissement", "Aucun rapport à envoyer.")
         return
 
-    url = "http://127.0.0.1:5000/reports"  # Remplacez par l'URL de votre API Flask
     headers = {"Content-Type": "application/json"}
-    try:
-        response = requests.post(url, data=json.dumps(all_reports), headers=headers)
-        if response.status_code == 200:
-            messagebox.showinfo("Succès", "Tous les rapports ont été envoyés avec succès.")
-        else:
-            messagebox.showerror("Erreur", f"Erreur lors de l'envoi : {response.text}")
-    except Exception as e:
-        messagebox.showerror("Erreur", f"Erreur de connexion : {str(e)}")
+    erreurs = []
+
+    for report in all_reports:
+        try:
+            response = requests.post(API_URL, json=report, headers=headers)
+            if response.status_code != 200:
+                erreurs.append(f"Erreur pour le rapport {report}: {response.text}")
+        except Exception as e:
+            erreurs.append(f"Erreur de connexion : {str(e)}")
+
+    if erreurs:
+        messagebox.showerror("Erreurs", "\n".join(erreurs))
+    else:
+        messagebox.showinfo("Succès", "Tous les rapports ont été envoyés avec succès.")
 
 # Fonction pour obtenir l'adresse IP locale et le nom de la machine
 def obtenir_infos_locales():
@@ -65,9 +75,8 @@ def detecter_adresses_mac():
 # Fonction pour lancer un scan réseau
 def lancer_scan():
     global machines_connectees
-    ip_range = "192.168.1.0/24"
     try:
-        scanner.scan(hosts=ip_range, arguments='-p 1-1024')
+        scanner.scan(hosts=IP_RANGE, arguments='-p 1-1024')
         machines_connectees = [host for host in scanner.all_hosts()]
         nombre_machines = len(machines_connectees)
         liste_machines["values"] = machines_connectees
