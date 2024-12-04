@@ -42,12 +42,10 @@ rapport_global = {
     "rapports": {}
 }
 
-
 # Sauvegarder le rapport global dans un fichier
 def sauvegarder_rapport_global():
     with open(rapport_global_path, "w") as f:
         json.dump(rapport_global, f, indent=4)
-
 
 # Fonction pour envoyer le rapport global à l'API
 def envoyer_rapport_global():
@@ -69,7 +67,6 @@ def envoyer_rapport_global():
     except Exception as e:
         messagebox.showerror("Erreur", f"Erreur lors de l'envoi : {str(e)}")
 
-
 # Fonction pour obtenir l'adresse IP locale et le nom de la machine
 def obtenir_infos_locales():
     nom_machine = socket.gethostname()
@@ -83,19 +80,17 @@ def obtenir_infos_locales():
     sauvegarder_rapport_global()
     return adresse_ip, nom_machine, adresses_mac
 
-
 # Fonction pour détecter les adresses MAC
 def detecter_adresses_mac():
     try:
-        result = os.popen("arp -a").read()
+        result = subprocess.run(["ip", "neigh"], capture_output=True, text=True)
         adresses_mac = []
-        for line in result.splitlines():
-            if "at" in line or "ether" in line:  # Dépend de la commande arp (OS)
+        for line in result.stdout.splitlines():
+            if "lladdr" in line:
                 adresses_mac.append(line)
         return adresses_mac
     except Exception as e:
         return [f"Erreur : {str(e)}"]
-
 
 # Fonction pour lancer un scan réseau
 def lancer_scan():
@@ -107,10 +102,14 @@ def lancer_scan():
             "machines_connectees": machines_connectees,
         }
         sauvegarder_rapport_global()
+
+        # Mise à jour de la liste déroulante
+        liste_machines["values"] = machines_connectees
+        liste_machines.set("")
+
         messagebox.showinfo("Scan Réseau", f"{len(machines_connectees)} machines détectées.")
     except Exception as e:
         messagebox.showerror("Erreur", f"Erreur lors du scan réseau : {str(e)}")
-
 
 # Fonction pour lancer un scan avancé sur une machine sélectionnée
 def lancer_scan_avance():
@@ -129,33 +128,6 @@ def lancer_scan_avance():
             messagebox.showerror("Erreur", f"Erreur lors du scan avancé : {str(e)}")
     else:
         messagebox.showwarning("Avertissement", "Veuillez sélectionner une machine.")
-
-
-# Fonction pour mesurer la latence WAN (ping)
-def mesurer_latence():
-    cible = "8.8.8.8"
-    try:
-        result = subprocess.run(['ping', '-c', '4', cible], capture_output=True, text=True)
-        latence = parse_ping_output(result.stdout)
-        rapport_global["rapports"]["latence"] = {
-            "cible": cible,
-            "latence_moyenne": latence,
-        }
-        sauvegarder_rapport_global()
-        messagebox.showinfo("Latence WAN", f"Latence moyenne : {latence} ms.")
-    except Exception as e:
-        messagebox.showerror("Erreur", f"Erreur lors de la mesure de latence : {str(e)}")
-
-
-# Fonction pour analyser la sortie de la commande ping
-def parse_ping_output(output):
-    lignes = output.split('\n')
-    for ligne in lignes:
-        if "avg" in ligne or "moyenne" in ligne:
-            latence = ligne.split('/')[4]  # Récupérer la latence moyenne
-            return latence
-    return "Indisponible"
-
 
 # Interface Tkinter
 root = tk.Tk()
@@ -176,14 +148,11 @@ btn_scan.pack(pady=10)
 label_selection = tk.Label(root, text="Sélectionnez une machine pour le scan avancé :")
 label_selection.pack(pady=5)
 
-liste_machines = ttk.Combobox(root)
+liste_machines = ttk.Combobox(root, state="readonly")
 liste_machines.pack(pady=5)
 
 btn_scan_avance = tk.Button(root, text="Lancer le Scan Avancé", command=lancer_scan_avance)
 btn_scan_avance.pack(pady=10)
-
-btn_latence_wan = tk.Button(root, text="Mesurer la Latence WAN", command=mesurer_latence)
-btn_latence_wan.pack(pady=10)
 
 btn_envoyer_rapport = tk.Button(root, text="Envoyer le Rapport Global", command=envoyer_rapport_global)
 btn_envoyer_rapport.pack(pady=10)

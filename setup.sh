@@ -8,7 +8,7 @@ fi
 
 echo "Activation de l'environnement virtuel..."
 source venv/bin/activate
-
+# installation de pip et de python3.11-venvpip python3-tk nmap
 echo "Installation des dépendances depuis requirements.txt..."
 pip install -r requirements.txt
 
