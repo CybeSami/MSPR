@@ -87,7 +87,10 @@ def detecter_adresses_mac():
         adresses_mac = []
         for line in result.stdout.splitlines():
             if "lladdr" in line:
-                adresses_mac.append(line)
+                parts = line.split()
+                if "lladdr" in parts:
+                    mac_index = parts.index("lladdr") + 1
+                    adresses_mac.append(parts[mac_index])
         return adresses_mac
     except Exception as e:
         return [f"Erreur : {str(e)}"]
@@ -96,6 +99,7 @@ def detecter_adresses_mac():
 def lancer_scan():
     try:
         scanner.scan(hosts=IP_RANGE, arguments='-p 1-1024')
+        global machines_connectees
         machines_connectees = [host for host in scanner.all_hosts()]
         rapport_global["rapports"]["scan_reseau"] = {
             "nombre_machines": len(machines_connectees),
@@ -137,7 +141,7 @@ root.title("Seahawks Harverster")
 adresse_ip, nom_machine, adresses_mac = obtenir_infos_locales()
 label_infos = tk.Label(
     root,
-    text=f"Adresse IP Locale : {adresse_ip}\nNom de la Machine : {nom_machine}\nAdresse MAC : {', '.join(adresses_mac)}",
+    text=f"Adresse IP Locale : {adresse_ip}\nNom de la Machine : {nom_machine}\nAdresses MAC : {', '.join(adresses_mac)}",
 )
 label_infos.pack(pady=10)
 
